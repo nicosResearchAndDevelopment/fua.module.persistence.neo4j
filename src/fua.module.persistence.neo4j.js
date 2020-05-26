@@ -29,30 +29,42 @@ module.exports = ({
         'config': config
     }) {
         const
-            driver = neo4j.driver(config["host"], config["auth"], config["driver"])
-            ; // const
-        let
+            driver = neo4j.driver(config["host"], config["auth"], config["driver"]),
+            regex_valid_id = /^https?:\/\/\S+$|^\w+:\S+$/,
+            array_primitive_types = ["boolean", "number", "string"],
             module_persistence_neo4j = module_persistence({
                 '@id': id
-            }, /** parameter */ null)
-            ; // let
+            }, /** parameter */ null);
 
-        const regex_valid_id = /^https?:\/\/\S+$|^\w+:\S+$/;
-        function assert_valid_id(value) {
-            if (!regex_valid_id.test(value)) {
-                throw new TypeError(`module_persistence_neo4j : invalid id <${value}>.`);
-            }
-        } // assert_valid_id
+        /**
+         * Returns true, if the value is a complete or prefixed IRI.
+         * This function is important to distinct values from IRIs and
+         * to make sure, subject, predicate and object are valid ids.
+         * @param {IRI} value 
+         * @returns {Boolean}
+         */
+        function is_semantic_id(value) {
+            return regex_valid_id.test(value);
+        } // is_semantic_id
 
-        const array_primitive_types = ["boolean", "number", "string"];
-        function assert_primitive_value(value) {
-            if (!(
-                value === null || array_primitive_types.includes(typeof value) ||
-                (Array.isArray(value) && array_primitive_types.some(type => value.every(entry => typeof entry === type)))
-            )) {
-                throw new TypeError(`module_persistence_neo4j : invalid primitive value <${value}>.`);
-            }
-        } // assert_primitive_value
+        /**
+         * This are the only values neo4j can store on a node.
+         * @typedef {null|Boolean|Number|String|Array<Boolean>|Array<Number>|Array<String>} PrimitiveValue 
+         */
+
+        /**
+         * Returns true, if the value is primitive. This function
+         * is important to make sure, a value can be stored in neo4j.
+         * @param {PrimitiveValue} value 
+         * @returns {Boolean}
+         */
+        function is_primitive_value(value) {
+            return value === null
+                || array_primitive_types.includes(typeof value)
+                || (Array.isArray(value) && array_primitive_types.some(
+                    type => value.every(arrValue => typeof arrValue === type)
+                ));
+        } // is_primitive_value
 
         /**
          * Resolves the data types of neo4j, although most likely there are 
@@ -80,10 +92,14 @@ module.exports = ({
         } // neo4j_norm_value
 
         /**
-         * Creates a nice object from the neo4j record that looks like
-         * the return in the query.
+         * This is an object, which looks like the return of cypher queries.
+         * @typedef {Object} Record 
+         */
+
+        /**
+         * Creates a nice object from the neo4j record.
          * @param {Neo4j~Record} neo4j_record 
-         * @returns {Object} with key-values as defined in the query
+         * @returns {Record} with key-values as defined in the query
          */
         function neo4j_create_record(neo4j_record) {
             let custom_record = {};
@@ -97,9 +113,9 @@ module.exports = ({
         /**
          * Creates a session and runs the given query with optional 
          * parameter object and returns the result array with custom records.
-         * @async
          * @param {String} query 
          * @param {Object} [param] 
+         * @returns {Promise<Array<Record>>}
          */
         async function neo4j_run_query(query, param) {
             let result, session = driver.session();
@@ -113,26 +129,37 @@ module.exports = ({
             }
         } // neo4j_run_query
 
+        /**
+         * @param {IRI} subject 
+         * @param {Number} timeout 
+         * @returns {Promise<Boolean>}
+         */
         function module_persistence_neo4j_CREATE(subject, timeout = default_timeout) {
             return new Promise(async (resolve, reject) => {
                 let semaphore;
                 try {
-                    assert_valid_id(subject);
+                    if (!is_semantic_id(subject))
+                        throw new TypeError(`module_persistence_neo4j_CREATE : subject <${subject}> invalid.`);
                     semaphore = setTimeout(() => {
                         clearTimeout(semaphore);
                         reject(`module_persistence_neo4j_CREATE : timeout <${timeout}> reached.`);
                     }, timeout);
                     let nodeID = await module_persistence_neo4j_READ(subject, '@id');
+                    // REM alternative to resolving true/false:
+                    // if (nodeID)
+                    //     throw new Error(`module_persistence_neo4j_CREATE : subject <${subject}> already present.`);
                     if (semaphore) clearTimeout(semaphore);
-                    if (!nodeID) {
+
+                    if (nodeID) {
+                        resolve(false);
+                    } else {
                         await neo4j_run_query(
                             "CREATE (subject:`rdfs:Resource` { `@id`: $subject })",
                             { "subject": subject }
                         );
-                        resolve("created");
-                    } else {
-                        reject(`module_persistence_neo4j_CREATE : subject <${subject}> already present.`);
-                    } // if ()
+                        resolve(true);
+                    }
+
                 } catch (err) {
                     if (semaphore) clearTimeout(semaphore);
                     reject(err);
@@ -140,11 +167,18 @@ module.exports = ({
             }); // return new P
         } // function module_persistence_neo4j_CREATE()
 
+        /**
+         * @param {IRI} subject 
+         * @param {String|Array<String>} [key] 
+         * @param {Number} timeout 
+         * @returns {Promise<Object|PrimitiveValue|Array<PrimitiveValue>>}
+         */
         function module_persistence_neo4j_READ(subject, key, timeout = default_timeout) {
             return new Promise(async (resolve, reject) => {
                 let semaphore;
                 try {
-                    assert_valid_id(subject);
+                    if (!is_semantic_id(subject))
+                        throw new TypeError(`module_persistence_neo4j_READ : subject <${subject}> invalid.`);
                     semaphore = setTimeout(() => {
                         clearTimeout(semaphore);
                         reject(`module_persistence_neo4j_READ : timeout <${timeout}> reached.`);
@@ -168,14 +202,13 @@ module.exports = ({
                             "RETURN subject { .*, `@type`: labels(subject) } AS node",
                             { "subject": subject }
                         );
+                        if (results.length === 0)
+                            throw new Error(`module_persistence_neo4j_READ : subject <${subject}> not found.`);
+                        if (results.length > 1)
+                            throw new Error(`module_persistence_neo4j_READ : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
+
                         if (semaphore) clearTimeout(semaphore);
-                        if (results.length === 0) {
-                            reject(`module_persistence_neo4j_READ : subject <${subject}> not found.`);
-                        } else if (results.length === 1) {
-                            resolve(results[0]["node"]);
-                        } else {
-                            reject(`module_persistence_neo4j_READ : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
-                        }
+                        resolve(results[0]["node"]);
                     } // if ()
                 } catch (err) {
                     if (semaphore) clearTimeout(semaphore);
@@ -184,11 +217,19 @@ module.exports = ({
             }); // return new P
         } // function module_persistence_neo4j_READ()
 
+        /**
+         * @param {IRI} subject 
+         * @param {string|IRI} key 
+         * @param {PrimitiveValue|IRI} value 
+         * @param {Number} timeout 
+         * @returns {Promise<Boolean>}
+         */
         function module_persistence_neo4j_UPDATE(subject, key, value, timeout = default_timeout) {
             return new Promise(async (resolve, reject) => {
                 let semaphore;
                 try {
-                    assert_valid_id(subject);
+                    if (!is_semantic_id(subject))
+                        throw new TypeError(`module_persistence_neo4j_UPDATE : subject <${subject}> invalid.`);
                     if (key === "@id")
                         throw new Error(`module_persistence_neo4j_UPDATE : the @id cannot be overridden.`)
 
@@ -201,7 +242,9 @@ module.exports = ({
                         let newTypes = Array.isArray(value) ? value : value ? [value] : [];
                         if (newTypes.length === 0)
                             throw new Error(`module_persistence_neo4j_UPDATE : the @type must not be empty.`);
-                        newTypes.forEach(assert_valid_id);
+                        let invalidIndex = newTypes.findIndex(type => !is_semantic_id(type));
+                        if (invalidIndex >= 0)
+                            throw new TypeError(`module_persistence_neo4j_UPDATE : @type <${newTypes[invalidIndex]}> invalid.`);
 
                         let
                             oldTypes = await module_persistence_neo4j_READ(subject, '@type'),
@@ -219,49 +262,49 @@ module.exports = ({
                                 { "subject": subject }
                             );
 
+                        if (results.length === 0)
+                            throw new Error(`module_persistence_neo4j_UPDATE : subject <${subject}> not found.`);
+                        if (results.length > 1)
+                            throw new Error(`module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
+
                         if (semaphore) clearTimeout(semaphore);
-                        if (results.length === 0) {
-                            reject(`module_persistence_neo4j_UPDATE : subject <${subject}> not found.`);
-                        } else if (results.length === 1) {
-                            resolve("updated");
-                        } else {
-                            reject(`module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
-                        }
-                    } else if (key.startsWith("@")) {
-                        assert_primitive_value(value);
+                        resolve(true);
+                    } else if (is_semantic_id(key) && is_semantic_id(value)) {
+                        let
+                            predicate = key,
+                            object = value,
+                            results = await neo4j_run_query(
+                                "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
+                                "MATCH (object:`rdfs:Resource` { `@id`: $object }) \n" +
+                                "MERGE (subject)-[:`" + predicate + "`]->(object) \n" +
+                                "RETURN true AS success",
+                                { "subject": subject, "object": object }
+                            );
+
+                        if (results.length === 0)
+                            throw new Error(`module_persistence_neo4j_UPDATE : subject <${subject}> not found.`);
+                        if (results.length > 1)
+                            throw new Error(`module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
+
+                        if (semaphore) clearTimeout(semaphore);
+                        resolve(true);
+                    } else {
+                        if (!is_primitive_value(value))
+                            throw new TypeError(`module_persistence_neo4j_UPDATE : value <${value}> not a primitive value.`);
                         let results = await neo4j_run_query(
                             "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
                             "SET subject[$key] = $value \n" +
                             "RETURN true AS success",
                             { "subject": subject, "key": key, "value": value }
                         );
+
+                        if (results.length === 0)
+                            throw new Error(`module_persistence_neo4j_UPDATE : subject <${subject}> not found.`);
+                        if (results.length > 1)
+                            throw new Error(`module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
+
                         if (semaphore) clearTimeout(semaphore);
-                        if (results.length === 0) {
-                            reject(`module_persistence_neo4j_UPDATE : subject <${subject}> not found.`);
-                        } else if (results.length === 1) {
-                            resolve("updated");
-                        } else {
-                            reject(`module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
-                        }
-                    } else {
-                        let predicate = key, object = value;
-                        assert_valid_id(predicate);
-                        assert_valid_id(object);
-                        let results = await neo4j_run_query(
-                            "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
-                            "MATCH (object:`rdfs:Resource` { `@id`: $object }) \n" +
-                            "MERGE (subject)-[:`" + predicate + "`]->(object) \n" +
-                            "RETURN true AS success",
-                            { "subject": subject, "object": object }
-                        );
-                        if (semaphore) clearTimeout(semaphore);
-                        if (results.length === 0) {
-                            reject(`module_persistence_neo4j_UPDATE : subject <${subject}> or object <${object}> not found.`);
-                        } else if (results.length === 1 && results[0]["success"]) {
-                            resolve("updated");
-                        } else {
-                            reject(`module_persistence_neo4j_UPDATE : subject <${subject}> object <${object}> pair appeared ${results.length} times. Please make sure to index the @id property uniquely!`);
-                        }
+                        resolve(true);
                     } // if ()
                 } catch (err) {
                     if (semaphore) clearTimeout(semaphore);
@@ -270,11 +313,19 @@ module.exports = ({
             }); // return new P
         } // function module_persistence_neo4j_UPDATE()
 
+        /**
+         * @param {IRI} subject 
+         * @param {IRI} [predicate] 
+         * @param {IRI} [object] 
+         * @param {Number} timeout 
+         * @returns {Promise<Boolean>}
+         */
         function module_persistence_neo4j_DELETE(subject, predicate, object, timeout = default_timeout) {
             return new Promise(async (resolve, reject) => {
                 let semaphore;
                 try {
-                    assert_valid_id(subject);
+                    if (!is_semantic_id(subject))
+                        throw new TypeError(`module_persistence_neo4j_DELETE : subject <${subject}> invalid.`);
                     semaphore = setTimeout(() => {
                         clearTimeout(semaphore);
                         reject(`module_persistence_neo4j_DELETE : timeout <${timeout}> reached.`);
@@ -287,17 +338,19 @@ module.exports = ({
                             { "subject": subject }
                         );
                         if (semaphore) clearTimeout(semaphore);
-                        resolve("subject deleted");
+                        resolve(true);
                     } else {
-                        assert_valid_id(predicate);
-                        assert_valid_id(object);
+                        if (!is_semantic_id(predicate))
+                            throw new TypeError(`module_persistence_neo4j_DELETE : predicate <${predicate}> invalid.`);
+                        if (!is_semantic_id(object))
+                            throw new TypeError(`module_persistence_neo4j_DELETE : object <${object}> invalid.`);
                         await neo4j_run_query(
                             "MATCH (:`rdfs:Resource` { `@id`: $subject })-[predicate:`" + predicate + "`]->(:`rdfs:Resource` { `@id`: $object }) \n" +
                             "DELETE predicate",
                             { "subject": subject, "object": object }
                         );
                         if (semaphore) clearTimeout(semaphore);
-                        resolve("predicate deleted");
+                        resolve(true);
                     }
                 } catch (err) {
                     if (semaphore) clearTimeout(semaphore);
@@ -306,12 +359,20 @@ module.exports = ({
             }); // return new P
         } // function module_persistence_neo4j_DELETE()
 
+        /**
+         * @param {IRI} subject 
+         * @param {IRI} predicate 
+         * @param {Number} timeout 
+         * @returns {Promise<Array<IRI>>}
+         */
         function module_persistence_neo4j_LIST(subject, predicate, timeout = default_timeout) {
             return new Promise(async (resolve, reject) => {
                 let semaphore;
                 try {
-                    assert_valid_id(subject);
-                    assert_valid_id(predicate);
+                    if (!is_semantic_id(subject))
+                        throw new TypeError(`module_persistence_neo4j_LIST : subject <${subject}> invalid.`);
+                    if (!is_semantic_id(subject))
+                        throw new TypeError(`module_persistence_neo4j_LIST : predicate <${predicate}> invalid.`);
                     semaphore = setTimeout(() => {
                         clearTimeout(semaphore);
                         reject(`module_persistence_neo4j_LIST : timeout <${timeout}> reached.`);
