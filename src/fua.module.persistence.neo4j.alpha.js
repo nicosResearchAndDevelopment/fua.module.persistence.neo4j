@@ -2,9 +2,9 @@ module.exports = ({
     // 'Helmut': Helmut,
     'neo4j': neo4j,
     // 'neo4j': neo4j = require("neo4j-driver").v1,
-    'neo4j-driver': neo4j_driver,
+    'neo4j_driver': neo4j_driver,
     'hrt': hrt = () => Date.now() / 1000,
-    'config': config,
+    'config': config = {},
     'default_timeout': default_timeout = 10000 // TODO:config
 }) => {
 
@@ -24,11 +24,13 @@ module.exports = ({
 
     function module_persistence_neo4j_factory({
         'neo4j': neo4j,
-        'neo4j-driver': driver,
+        'neo4j_driver': driver,
         // 'hrt': hrt,
         //region interface
         '@id': id = "neo4j",
-        'config': config
+        'config': {
+            "log_queries": log_queries = false
+        }
     }) {
         const
             // driver = neo4j.driver(config["host"], config["auth"], config["driver-config"]),
@@ -76,9 +78,9 @@ module.exports = ({
          */
         function neo4j_norm_value(neo4j_value) {
             let normed_value;
-            if (Neo4j.isInt(neo4j_value)) {
-                normed_value = Neo4j.integer.inSafeRange(neo4j_value) ? neo4j_value.toNumber() : neo4j_value.toString();
-            } else if (Neo4j.isDateTime(neo4j_value) || Neo4j.isDuration(neo4j_value) || Neo4j.isPoint(neo4j_value)) {
+            if (neo4j.isInt(neo4j_value)) {
+                normed_value = neo4j.integer.inSafeRange(neo4j_value) ? neo4j_value.toNumber() : neo4j_value.toString();
+            } else if (neo4j.isDateTime(neo4j_value) || neo4j.isDuration(neo4j_value) || neo4j.isPoint(neo4j_value)) {
                 normed_value = neo4j_value.toString();
             } else if (Array.isArray(neo4j_value)) {
                 normed_value = neo4j_value.map(neo4j_norm_value);
@@ -122,6 +124,15 @@ module.exports = ({
         async function neo4j_run_query(query, param) {
             let result, session = driver.session();
             try {
+                if (log_queries) {
+                    console.log([
+                        "module_persistence_neo4j : neo4j_run_query :",
+                        "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+                        "query:\t" + query.split("\n").join("\n\t"),
+                        "param:\t" + JSON.stringify(param, null, 2).split("\n").join("\n\t"),
+                        ""
+                    ].join("\n"));
+                }
                 result = await session.run(query, param);
                 session.close();
                 return result['records'].map(neo4j_create_record);
@@ -186,7 +197,6 @@ module.exports = ({
                         let results = await neo4j_run_query(
                             "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
                             "WITH subject UNWIND $keys AS key \n" +
-                            "WITH key WHERE exists(subject[key]) OR key = '@type' \n" +
                             "RETURN key, CASE key WHEN '@type' THEN labels(subject) ELSE subject[key] END AS value",
                             { "subject": subject, "keys": key_array }
                         );
@@ -240,6 +250,8 @@ module.exports = ({
                         let newTypes = Array.isArray(value) ? value : value ? [value] : [];
                         if (newTypes.length === 0)
                             throw `module_persistence_neo4j_UPDATE : the @type must not be empty.`;
+                        if (!newTypes.includes("rdfs:Resource"))
+                            throw `module_persistence_neo4j_UPDATE : the @type must always contain rdfs:Resource.`;
                         let invalidIndex = newTypes.findIndex(type => !is_semantic_id(type));
                         if (invalidIndex >= 0)
                             throw `module_persistence_neo4j_UPDATE : @type <${newTypes[invalidIndex]}> invalid.`;
@@ -247,26 +259,32 @@ module.exports = ({
                         let
                             oldTypes = await module_persistence_neo4j_READ(subject, '@type'),
                             toAdd = newTypes.filter(type => !oldTypes.includes(type)),
-                            toRemove = oldTypes.filter(type => !newTypes.includes(type)),
-                            results = await neo4j_run_query(
+                            toRemove = oldTypes.filter(type => !newTypes.includes(type));
+
+                        if (toAdd.length + toRemove.length === 0) {
+                            if (semaphore) clearTimeout(semaphore);
+                            resolve(true);
+                        } else {
+                            let results = await neo4j_run_query(
                                 "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
-                                "SET " + toAdd.map(
+                                (toAdd.length === 0 ? "" : "SET " + toAdd.map(
                                     (type) => "subject:`" + type + "`"
-                                ).join(",\n    ") + " \n" +
-                                "REMOVE " + toRemove.map(
+                                ).join(",\n    ") + " \n") +
+                                (toRemove.length === 0 ? "" : "REMOVE " + toRemove.map(
                                     (type) => "subject:`" + type + "`"
-                                ).join(",\n    ") + " \n" +
+                                ).join(",\n    ") + " \n") +
                                 "RETURN true AS success",
                                 { "subject": subject }
                             );
 
-                        if (results.length === 0)
-                            throw `module_persistence_neo4j_UPDATE : subject <${subject}> not found.`;
-                        if (results.length > 1)
-                            throw `module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`;
+                            if (results.length === 0)
+                                throw `module_persistence_neo4j_UPDATE : subject <${subject}> not found.`;
+                            if (results.length > 1)
+                                throw `module_persistence_neo4j_UPDATE : subject <${subject}> appeared ${results.length} times. Please make sure to index the @id property uniquely!`;
 
-                        if (semaphore) clearTimeout(semaphore);
-                        resolve(true);
+                            if (semaphore) clearTimeout(semaphore);
+                            resolve(true);
+                        }
                     } else if (is_semantic_id(key) && is_semantic_id(value)) {
                         let
                             predicate = key,
@@ -291,9 +309,9 @@ module.exports = ({
                             throw `module_persistence_neo4j_UPDATE : value <${value}> not a primitive value.`;
                         let results = await neo4j_run_query(
                             "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
-                            "SET subject[$key] = $value \n" +
+                            "SET subject.`" + key + "` = $value \n" +
                             "RETURN true AS success",
-                            { "subject": subject, "key": key, "value": value }
+                            { "subject": subject, "value": value }
                         );
 
                         if (results.length === 0)
@@ -411,6 +429,6 @@ module.exports = ({
 
     } // module_persistence_neo4j_factory ()
 
-    return module_persistence_neo4j_factory({ 'neo4j': neo4j, 'neo4j-driver': neo4j_driver, 'hrt': hrt, 'config': config });
+    return module_persistence_neo4j_factory({ 'neo4j': neo4j, 'neo4j_driver': neo4j_driver, 'hrt': hrt, 'config': config });
 
 };
