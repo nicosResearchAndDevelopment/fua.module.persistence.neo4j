@@ -227,7 +227,7 @@ module.exports = ({
 
         /**
          * @param {IRI} subject 
-         * @param {string|IRI} key 
+         * @param {String|IRI} key 
          * @param {PrimitiveValue|IRI} value 
          * @param {Number} timeout 
          * @returns {Promise<Boolean>}
