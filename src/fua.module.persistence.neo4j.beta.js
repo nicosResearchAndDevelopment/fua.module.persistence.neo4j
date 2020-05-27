@@ -33,7 +33,7 @@ module.exports = function (config) {
 
     /**
      * Returns true, if the value does not include any `, ' or ".
-     * @param {string} value 
+     * @param {String} value 
      * @returns {Boolean}
      */
     function is_cypher_save_string(value) {
@@ -42,7 +42,7 @@ module.exports = function (config) {
 
     /**
      * This is an IRI or a prefixed IRI.
-     * @typedef {string|IRI} SemanticID
+     * @typedef {String|IRI} SemanticID
      * 
      * Returns true, if the value is a complete or prefixed IRI.
      * This function is important to distinct values from IRIs and
@@ -164,7 +164,7 @@ module.exports = function (config) {
     async function operation_neo4j_read_subject(subject) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - neo4j_read_subject - invalid {SemanticID} subject <${subject}>`);
+            `neo4j_adapter - operation_read_subject - invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<Record>} */
         const readRecords = await request_neo4j(
@@ -186,7 +186,7 @@ module.exports = function (config) {
     async function operation_neo4j_read_type(subject) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - neo4j_read_type - invalid {SemanticID} subject <${subject}>`);
+            `neo4j_adapter - operation_read_type - invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<Record>} */
         const readRecords = await request_neo4j(
@@ -212,14 +212,14 @@ module.exports = function (config) {
         if (key === "@type") return await operation_neo4j_read_type(subject);
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - neo4j_read - invalid {SemanticID} subject <${subject}>`);
+            `neo4j_adapter - operation_read - invalid {SemanticID} subject <${subject}>`);
 
         const isArray = Array.isArray(key);
         /** @type {Array<String>} */
         const keyArr = isArray ? key : [key];
 
         assert(keyArr.every(is_cypher_save_string),
-            `neo4j_adapter - neo4j_read - invalid {String|Array<String>} key <${key}> not cypher save`);
+            `neo4j_adapter - operation_read - {String|Array<String>} key <${key}> not cypher save`);
 
         /** @type {Array<Record>} */
         const readRecords = await request_neo4j(
@@ -248,7 +248,25 @@ module.exports = function (config) {
      */
     async function operation_neo4j_update_predicate(subject, predicate, object) {
 
-        // TODO implement operation UPDATE_predicate
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_update_predicate - invalid {SemanticID} subject <${subject}>`);
+        assert(is_semantic_id(predicate),
+            `neo4j_adapter - operation_update_predicate - invalid {SemanticID} predicate <${predicate}>`);
+        assert(is_semantic_id(object),
+            `neo4j_adapter - operation_update_predicate - invalid {SemanticID} object <${object}>`);
+        assert(is_cypher_save_string(predicate),
+            `neo4j_adapter - operation_update_predicate - {SemanticID} predicate <${predicate}> not cypher save`);
+
+        /** @type {Array<Record>} */
+        const updateRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "MATCH (object:`rdfs:Resource` { `@id`: $object })\n" +
+            "MERGE (subject)-[:`" + predicate + "`]->(object)\n" +
+            "RETURN true AS updated",
+            { "subject": subject, "object": object }
+        );
+
+        return updateRecords.length > 0 ? updateRecords[0]["updated"] : false;
 
     } // operation_neo4j_update_predicate
 
@@ -261,7 +279,39 @@ module.exports = function (config) {
      */
     async function operation_neo4j_update_type(subject, type) {
 
-        // TODO implement operation UPDATE_type
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_update_type - invalid {SemanticID} subject <${subject}>`);
+
+        /** @type {Array<SemanticID>} */
+        const typeArr = Array.isArray(type) ? type : [type];
+
+        assert(typeArr.every(is_semantic_id),
+            `neo4j_adapter - operation_update_type - invalid {SemanticID|Array<SemanticID>} type <${type}>`);
+        if (!typeArr.includes("rdfs:Resource"))
+            typeArr.push("rdfs:Resource");
+
+        /** @type {Array<SemanticID>} */
+        const prevTypes = await operation_neo4j_read_type(subject);
+        if (!prevTypes) return false;
+
+        const addTypes = typeArr.filter(type => !prevTypes.includes(type));
+        const removeTypes = prevTypes.filter(type => !typeArr.includes(type));
+        if (addTypes.length + removeTypes.length === 0) return true;
+
+        /** @type {Array<Record>} */
+        let updateRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            (addTypes.length === 0 ? "" : "SET " + addTypes.map(
+                type => "subject:`" + type + "`"
+            ).join(", ") + "\n") +
+            (removeTypes.length === 0 ? "" : "REMOVE " + removeTypes.map(
+                type => "subject:`" + type + "`"
+            ).join(", ") + "\n") +
+            "RETURN true AS updated",
+            { "subject": subject }
+        );
+
+        return updateRecords.length > 0 ? updateRecords[0]["updated"] : false;
 
     } // operation_neo4j_update_type
 
@@ -275,7 +325,25 @@ module.exports = function (config) {
      */
     async function operation_neo4j_update(subject, key, value) {
 
-        // TODO implement operation UPDATE
+        if (key === "@type") return await operation_neo4j_update_type(subject, value);
+        if (is_semantic_id(key) && is_semantic_id(value)) return await operation_neo4j_update_predicate(subject, key, value);
+
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_update - invalid {SemanticID} subject <${subject}>`);
+        assert(is_cypher_save_string(key),
+            `neo4j_adapter - operation_update - {String|SemanticID} key <${key}> not cypher save`);
+        assert(is_primitive_value(value),
+            `neo4j_adapter - operation_update - invalid {PrimitiveValue|SemanticID} value <${value}>`);
+
+        /** @type {Array<Record>} */
+        const updateRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "SET subject.`" + key + "` = $value\n" +
+            "RETURN true AS updated",
+            { "subject": subject, "value": value }
+        );
+
+        return updateRecords.length > 0 ? updateRecords[0]["updated"] : false;
 
     } // operation_neo4j_update
 
@@ -289,7 +357,23 @@ module.exports = function (config) {
      */
     async function operation_neo4j_delete_predicate(subject, predicate, object) {
 
-        // TODO implement operation DELETE_predicate
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_delete_predicate - invalid {SemanticID} subject <${subject}>`);
+        assert(is_semantic_id(predicate),
+            `neo4j_adapter - operation_delete_predicate - invalid {SemanticID} predicate <${predicate}>`);
+        assert(is_semantic_id(object),
+            `neo4j_adapter - operation_delete_predicate - invalid {SemanticID} object <${object}>`);
+        assert(is_cypher_save_string(predicate),
+            `neo4j_adapter - operation_delete_predicate - {SemanticID} predicate <${predicate}> not cypher save`);
+
+        /** @type {Array<Record>} */
+        const deleteRecords = await request_neo4j(
+            "MATCH (:`rdfs:Resource` { `@id`: $subject })-[predicate:`" + predicate + "`]->(:`rdfs:Resource` { `@id`: $object })\n" +
+            "DELETE predicate RETURN true AS deleted",
+            { "subject": subject, "object": object }
+        );
+
+        return deleteRecords.length > 0 ? deleteRecords[0]["deleted"] : false;
 
     } // operation_neo4j_delete_predicate
 
@@ -303,7 +387,19 @@ module.exports = function (config) {
      */
     async function operation_neo4j_delete(subject, predicate, object) {
 
-        // TODO implement operation DELETE
+        if (predicate || object) return await operation_neo4j_delete_predicate(subject, predicate, object);
+
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_delete - invalid {SemanticID} subject <${subject}>`);
+
+        /** @type {Array<Record>} */
+        const deleteRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject }) \n" +
+            "DETACH DELETE subject RETURN true AS deleted",
+            { "subject": subject }
+        );
+
+        return deleteRecords.length > 0 ? deleteRecords[0]["deleted"] : false;
 
     } // operation_neo4j_delete
 
@@ -312,11 +408,27 @@ module.exports = function (config) {
      * @async
      * @param {SemanticID} subject 
      * @param {SemanticID} predicate 
-     * @returns {Array<SemanticID>}
+     * @returns {Array<SemanticID>|null}
      */
     async function operation_neo4j_list(subject, predicate) {
 
-        // TODO implement operation LIST
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_list - invalid {SemanticID} subject <${subject}>`);
+        assert(is_semantic_id(predicate),
+            `neo4j_adapter - operation_list - invalid {SemanticID} predicate <${predicate}>`);
+        assert(is_cypher_save_string(predicate),
+            `neo4j_adapter - operation_list - {SemanticID} predicate <${predicate}> not cypher save`);
+
+        /** @type {Array<Record>} */
+        const listRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "MATCH (subject)-[:`" + predicate + "`]->(object:`rdfs:Resource`)\n" +
+            "RETURN object.`@id` AS object",
+            { "subject": subject }
+        );
+
+        return listRecords.length > 0 ? listRecords.map(record => record["object"]) :
+            await operation_neo4j_exist(subject) ? [] : null;
 
     } // operation_neo4j_list
 

@@ -21,6 +21,7 @@ const
     const neo4j_persistence_adapter = fua_module_persistence_neo4j({
         'neo4j': neo4j,
         'neo4j_driver': neo4j_driver,
+        'driver': neo4j_driver,
         // 'hrt': () => Date.now() / 1e3,
         'config': {
             'log_queries': true
