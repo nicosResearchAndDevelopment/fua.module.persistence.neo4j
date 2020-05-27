@@ -99,6 +99,18 @@ module.exports = function (config) {
     } // request_neo4j
 
     /**
+     * TODO describe operation EXISTS
+     * @async
+     * @param {SemanticID} subject 
+     * @returns {Boolean}
+     */
+    async function operation_neo4j_exists(subject) {
+
+        // TODO implement operation EXISTS
+
+    } // operation_neo4j_exists
+
+    /**
      * TODO describe operation CREATE
      * @async
      * @param {SemanticID} subject 
@@ -111,17 +123,68 @@ module.exports = function (config) {
     } // operation_neo4j_create
 
     /**
+     * TODO describe operation READ_subject
+     * @async
+     * @param {SemanticID} subject 
+     * @returns {Object}
+     */
+    async function operation_neo4j_read_subject(subject) {
+
+        // TODO implement operation READ_subject
+
+    } // operation_neo4j_read_subject
+
+    /**
+     * TODO describe operation READ_type
+     * @async
+     * @param {SemanticID} subject 
+     * @returns {Array<SemanticID>}
+     */
+    async function operation_neo4j_read_type(subject) {
+
+        // TODO implement operation READ_type
+
+    } // operation_neo4j_read_type
+
+    /**
      * TODO describe operation READ
      * @async
      * @param {SemanticID} subject 
      * @param {String|Array<String>} [key] 
      * @returns {Object|PrimitiveValue|Array<PrimitiveValue>}
      */
-    async function operation_neo4j_read(subject, key, value) {
+    async function operation_neo4j_read(subject, key) {
 
         // TODO implement operation READ
 
     } // operation_neo4j_read
+
+    /**
+     * TODO describe operation UPDATE_predicate
+     * @async
+     * @param {SemanticID} subject 
+     * @param {SemanticID} predicate 
+     * @param {SemanticID} object 
+     * @returns {Boolean}
+     */
+    async function operation_neo4j_update_predicate(subject, predicate, object) {
+
+        // TODO implement operation UPDATE_predicate
+
+    } // operation_neo4j_update_predicate
+
+    /**
+     * TODO describe operation UPDATE_type
+     * @async
+     * @param {SemanticID} subject 
+     * @param {SemanticID|Array<SemanticID>} type 
+     * @returns {Boolean}
+     */
+    async function operation_neo4j_update_type(subject, type) {
+
+        // TODO implement operation UPDATE_type
+
+    } // operation_neo4j_update_type
 
     /**
      * TODO describe operation UPDATE
@@ -136,6 +199,20 @@ module.exports = function (config) {
         // TODO implement operation UPDATE
 
     } // operation_neo4j_update
+
+    /**
+     * TODO describe operation DELETE_predicate
+     * @async
+     * @param {SemanticID} subject 
+     * @param {SemanticID} predicate 
+     * @param {SemanticID} object 
+     * @returns {Boolean} 
+     */
+    async function operation_neo4j_delete_predicate(subject, predicate, object) {
+
+        // TODO implement operation DELETE_predicate
+
+    } // operation_neo4j_delete_predicate
 
     /**
      * TODO describe operation DELETE
