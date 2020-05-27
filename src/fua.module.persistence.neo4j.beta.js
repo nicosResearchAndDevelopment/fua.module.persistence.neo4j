@@ -1,19 +1,34 @@
 const
     assert = require("assert"),
-    // neo4j = require("neo4j-driver").v1,
     regex_semantic_id = /^https?:\/\/\S+$|^\w+:\S+$/,
-    array_primitive_types = Object.freeze(["boolean", "number", "string"]),
-    default_name = "module_persistence_neo4j";
+    array_primitive_types = Object.freeze(["boolean", "number", "string"]);
 
 /**
+ * This is the general concept of a persistence adapter.
+ * @typedef {Object} PersistenceAdapter 
+ * @property {Function} CREATE Create a resource.
+ * @property {Function} READ Return a resource or some properties.
+ * @property {Function} UPDATE Update a property or a reference.
+ * @property {Function} DELETE Delete a resource or a reference.
+ * @property {Function} LIST List targets of a reference on a resource.
+ * 
+ * This is a persistent adapter with build in methods for neo4j.
+ * @typedef {PersistenceAdapter} Neo4jAdapter
+ * 
  * This is the factory method to build a persistence adapter for neo4j.
  * @param {Object} config 
- * @returns {PersistenceAdapter<neo4j>}
+ * @param {Neo4j~Driver} config.driver
+ * @returns {Neo4jAdapter}
  */
 module.exports = function (config) {
 
     assert(typeof config === "object" && config !== null,
-        "The parameter for a persistence adapter must be a nonnull object.");
+        "The config for a persistence adapter must be a nonnull object.");
+    assert(typeof config["driver"] === "object" && config["driver"] !== null && typeof config["driver"]["session"] === "function",
+        "The config.driver must contain a neo4j driver instance.");
+
+    /** @type {Neo4j~Driver} */
+    const neo4j_driver = config["driver"];
 
     /**
      * This is an IRI or a prefixed IRI.
@@ -54,13 +69,13 @@ module.exports = function (config) {
      * @param {Neo4j~Record} neo4j_record 
      * @returns {Record} with key-values as defined in the return of the query
      */
-    function create_record(neo4j_record) {
-        let custom_record = {};
-        for (let key of neo4j_record['keys']) {
-            let value = neo4j_record['_fields'][neo4j_record['_fieldLookup'][key]];
-            custom_record[key] = value;
+    function create_record(neo4jRecord) {
+        let customRecord = {};
+        for (let key of neo4jRecord['keys']) {
+            let value = neo4jRecord['_fields'][neo4jRecord['_fieldLookup'][key]];
+            customRecord[key] = value;
         }
-        return custom_record;
+        return customRecord;
     } // create_record
 
     /**
@@ -72,9 +87,9 @@ module.exports = function (config) {
      * @returns {Array<Record>}
      */
     async function request_neo4j(query, param) {
-        let result, session = driver.session();
+        let session = neo4j_driver.session();
         try {
-            result = await session.run(query, param);
+            let result = await session.run(query, param);
             session.close();
             return result['records'].map(create_record);
         } catch (err) {
@@ -84,12 +99,78 @@ module.exports = function (config) {
     } // request_neo4j
 
     /**
+     * TODO describe operation CREATE
+     * @async
+     * @param {SemanticID} subject 
+     * @returns {Boolean}
+     */
+    async function operation_neo4j_create(subject) {
+
+        // TODO implement operation CREATE
+
+    } // operation_neo4j_create
+
+    /**
+     * TODO describe operation READ
+     * @async
+     * @param {SemanticID} subject 
+     * @param {String|Array<String>} [key] 
+     * @returns {Object|PrimitiveValue|Array<PrimitiveValue>}
+     */
+    async function operation_neo4j_read(subject, key, value) {
+
+        // TODO implement operation READ
+
+    } // operation_neo4j_read
+
+    /**
+     * TODO describe operation UPDATE
+     * @async
+     * @param {SemanticID} subject 
+     * @param {String|SemanticID} key 
+     * @param {PrimitiveValue|SemanticID} value 
+     * @returns {Boolean}
+     */
+    async function operation_neo4j_update(subject, key, value) {
+
+        // TODO implement operation UPDATE
+
+    } // operation_neo4j_update
+
+    /**
+     * TODO describe operation DELETE
+     * @async
+     * @param {SemanticID} subject 
+     * @param {SemanticID} [predicate] 
+     * @param {SemanticID} [object] 
+     * @returns {Boolean}
+     */
+    async function operation_neo4j_delete(subject, predicate, object) {
+
+        // TODO implement operation DELETE
+
+    } // operation_neo4j_delete
+
+    /**
+     * TODO describe operation LIST
+     * @async
+     * @param {SemanticID} subject 
+     * @param {SemanticID} predicate 
+     * @returns {Array<SemanticID>}
+     */
+    async function operation_neo4j_list(subject, predicate) {
+
+        // TODO implement operation LIST
+
+    } // operation_neo4j_list
+
+    /**
      * Creates a promise that times out after a given number of seconds.
      * If the original promise finishes before that, the error or result
      * will be resolved or rejected accordingly and the timeout will be canceled.
      * @param {Promise} origPromise 
      * @param {Number} timeoutDelay 
-     * @param {String} [errMsg] 
+     * @param {String} [errMsg="This promise timed out after waiting ${timeoutDelay}s for the original promise."] 
      * @returns {Promise}
      */
     function create_timeout_promise(origPromise, timeoutDelay, errMsg) {
@@ -130,76 +211,26 @@ module.exports = function (config) {
         });
     } // create_timeout_promise
 
-    /**
-     * @async
-     * @param {SemanticID} subject 
-     * @returns {Boolean}
-     */
-    async function persistence_neo4j_create(subject) {
-        // TODO
-    } // persistence_neo4j_create
+    /** @type {Neo4jAdapter} */
+    const neo4j_adapter = Object.freeze({
 
-    /**
-     * @async
-     * @param {SemanticID} subject 
-     * @param {String|Array<String>} [key] 
-     * @returns {Object|PrimitiveValue|Array<PrimitiveValue>}
-     */
-    async function persistence_neo4j_read(subject, key, value) {
-        // TODO
-    } // persistence_neo4j_read
+        "CREATE": (subject, timeout) => !timeout ? operation_neo4j_create(subject)
+            : create_timeout_promise(operation_neo4j_create(subject), timeout),
 
-    /**
-     * @async
-     * @param {SemanticID} subject 
-     * @param {String|SemanticID} key 
-     * @param {PrimitiveValue|SemanticID} value 
-     * @returns {Boolean}
-     */
-    async function persistence_neo4j_update(subject, key, value) {
-        // TODO
-    } // persistence_neo4j_update
+        "READ": (subject, key, timeout) => !timeout ? operation_neo4j_read(subject, key)
+            : create_timeout_promise(operation_neo4j_read(subject, key), timeout),
 
-    /**
-     * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID} [predicate] 
-     * @param {SemanticID} [object] 
-     * @returns {Boolean}
-     */
-    async function persistence_neo4j_delete(subject, predicate, object) {
-        // TODO
-    } // persistence_neo4j_delete
+        "UPDATE": (subject, key, value, timeout) => !timeout ? operation_neo4j_update(subject, key, value)
+            : create_timeout_promise(operation_neo4j_update(subject, key, value), timeout),
 
-    /**
-     * @async
-     * @param {SemanticID} subject 
-     * @param {SemanticID} predicate 
-     * @returns {Array<SemanticID>}
-     */
-    async function persistence_neo4j_list(subject, predicate) {
-        // TODO
-    } // persistence_neo4j_list
+        "DELETE": (subject, predicate, object, timeout) => !timeout ? operation_neo4j_delete(subject, predicate, object)
+            : create_timeout_promise(operation_neo4j_delete(subject, predicate, object), timeout),
 
-    return Object.freeze({
+        "LIST": (subject, predicate, timeout) => !timeout ? operation_neo4j_list(subject, predicate)
+            : create_timeout_promise(operation_neo4j_list(subject, predicate), timeout),
 
-        "@id": config["@id"] || default_name,
+    }); // neo4j_adapter
 
-        "CREATE": (subject, timeout) => !timeout ? persistence_neo4j_create(subject)
-            : create_timeout_promise(persistence_neo4j_create(subject), timeout),
-
-        "READ": (subject, key, timeout) => !timeout ? persistence_neo4j_read(subject, key)
-            : create_timeout_promise(persistence_neo4j_read(subject, key), timeout),
-
-        "UPDATE": (subject, key, value, timeout) => !timeout ? persistence_neo4j_update(subject, key, value)
-            : create_timeout_promise(persistence_neo4j_update(subject, key, value), timeout),
-
-        "DELETE": (subject, predicate, object, timeout) => !timeout ? persistence_neo4j_delete(subject, predicate, object)
-            : create_timeout_promise(persistence_neo4j_delete(subject, predicate, object), timeout),
-
-        "LIST": (subject, predicate, timeout) => !timeout ? persistence_neo4j_list(subject, predicate)
-            : create_timeout_promise(persistence_neo4j_list(subject, predicate), timeout),
-
-    });
+    return neo4j_adapter;
 
 }; // module.exports
