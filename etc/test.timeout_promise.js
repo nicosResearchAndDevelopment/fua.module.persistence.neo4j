@@ -1,10 +1,13 @@
 const assert = require("assert");
 
-function create_timeout_promise(promise, timeout) {
-    assert(promise instanceof Promise, "The promise must be a Promise.");
-    assert(typeof timeout === "number" && timeout > 0, "The timeout must be a number greater than 0.");
+function create_timeout_promise(promise, timeout, errMsg) {
+    assert(promise instanceof Promise,
+        "The promise must be a Promise.");
+    assert(typeof timeout === "number" && timeout > 0,
+        "The timeout must be a number greater than 0.");
 
-    let timeoutErr = new Error(`This promise timed out after waiting ${timeout}s for the original promise.`);
+    let timeoutErr = new Error(typeof errMsg === "string" ? errMsg :
+        `This promise timed out after waiting ${timeout}s for the original promise.`);
     Object.defineProperty(timeoutErr, "name", { value: "TimeoutError" });
     Error.captureStackTrace(timeoutErr, create_timeout_promise);
 
