@@ -1,6 +1,7 @@
 const
     assert = require("assert"),
     regex_semantic_id = /^https?:\/\/\S+$|^\w+:\S+$/,
+    regex_cypher_save_string = /^[^`'"]*$/,
     array_primitive_types = Object.freeze(["boolean", "number", "string"]);
 
 /**
@@ -29,6 +30,15 @@ module.exports = function (config) {
 
     /** @type {Neo4j~Driver} */
     const neo4j_driver = config["driver"];
+
+    /**
+     * Returns true, if the value does not include any `, ' or ".
+     * @param {string} value 
+     * @returns {Boolean}
+     */
+    function is_cypher_save_string(value) {
+        return regex_cypher_save_string.test(value);
+    } // is_cypher_save_string
 
     /**
      * This is an IRI or a prefixed IRI.
@@ -99,16 +109,26 @@ module.exports = function (config) {
     } // request_neo4j
 
     /**
-     * TODO describe operation EXISTS
+     * TODO describe operation EXIST
      * @async
      * @param {SemanticID} subject 
      * @returns {Boolean}
      */
-    async function operation_neo4j_exists(subject) {
+    async function operation_neo4j_exist(subject) {
 
-        // TODO implement operation EXISTS
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_exist - invalid {SemanticID} subject <${subject}>`);
 
-    } // operation_neo4j_exists
+        /** @type {Array<Record>} */
+        const existRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "RETURN true AS exists",
+            { "subject": subject }
+        );
+
+        return existRecords.length > 0 ? existRecords[0]["exists"] : false;
+
+    } // operation_neo4j_exist
 
     /**
      * TODO describe operation CREATE
@@ -118,7 +138,20 @@ module.exports = function (config) {
      */
     async function operation_neo4j_create(subject) {
 
-        // TODO implement operation CREATE
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - operation_create - invalid {SemanticID} subject <${subject}>`);
+
+        if (await operation_neo4j_exist(subject))
+            return false;
+
+        /** @type {Array<Record>} */
+        const createRecords = await request_neo4j(
+            "CREATE (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "RETURN true AS created",
+            { "subject": subject }
+        );
+
+        return createRecords.length > 0 ? createRecords[0]["created"] : false;
 
     } // operation_neo4j_create
 
@@ -126,11 +159,21 @@ module.exports = function (config) {
      * TODO describe operation READ_subject
      * @async
      * @param {SemanticID} subject 
-     * @returns {Object}
+     * @returns {Object|null}
      */
     async function operation_neo4j_read_subject(subject) {
 
-        // TODO implement operation READ_subject
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - neo4j_read_subject - invalid {SemanticID} subject <${subject}>`);
+
+        /** @type {Array<Record>} */
+        const readRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "RETURN subject { .*, `@type`: labels(subject) } AS properties",
+            { "subject": subject }
+        );
+
+        return readRecords.length > 0 ? readRecords[0]["properties"] : null;
 
     } // operation_neo4j_read_subject
 
@@ -142,7 +185,17 @@ module.exports = function (config) {
      */
     async function operation_neo4j_read_type(subject) {
 
-        // TODO implement operation READ_type
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - neo4j_read_type - invalid {SemanticID} subject <${subject}>`);
+
+        /** @type {Array<Record>} */
+        const readRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "RETURN labels(subject) AS type",
+            { "subject": subject }
+        );
+
+        return readRecords.length > 0 ? readRecords[0]["type"] : null;
 
     } // operation_neo4j_read_type
 
@@ -151,11 +204,37 @@ module.exports = function (config) {
      * @async
      * @param {SemanticID} subject 
      * @param {String|Array<String>} [key] 
-     * @returns {Object|PrimitiveValue|Array<PrimitiveValue>}
+     * @returns {Object|null|PrimitiveValue|Array<PrimitiveValue>}
      */
     async function operation_neo4j_read(subject, key) {
 
-        // TODO implement operation READ
+        if (!key) return await operation_neo4j_read_subject(subject);
+        if (key === "@type") return await operation_neo4j_read_type(subject);
+
+        assert(is_semantic_id(subject),
+            `neo4j_adapter - neo4j_read - invalid {SemanticID} subject <${subject}>`);
+
+        const isArray = Array.isArray(key);
+        /** @type {Array<String>} */
+        const keyArr = isArray ? key : [key];
+
+        assert(keyArr.every(is_cypher_save_string),
+            `neo4j_adapter - neo4j_read - invalid {String|Array<String>} key <${key}> not cypher save`);
+
+        /** @type {Array<Record>} */
+        const readRecords = await request_neo4j(
+            "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
+            "WITH subject UNWIND $keys AS key\n" +
+            "RETURN key, CASE key WHEN '@type' THEN labels(subject) ELSE subject[key] END AS value",
+            { "subject": subject, "keys": keyArr }
+        );
+
+        /** @type {Map<String, PrimitiveValue>} */
+        const valueMap = new Map(readRecords.map(record => [record["key"], record["value"]]));
+        /** @type {Array<PrimitiveValue>} */
+        const valueArr = keyArr.map(key => valueMap.get(key) || null);
+
+        return isArray ? valueArr : valueArr[0];
 
     } // operation_neo4j_read
 
