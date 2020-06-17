@@ -38,6 +38,6 @@ function create_timeout_promise(promise, timeout, errMsg) {
     });
 } // create_timeout_promise
 
-let promise = new Promise(resolve => setTimeout(resolve, 1e3, "Hello World!"));
-let timed_promise = create_timeout_promise(promise, Math.round(1e4 * Math.PI / 4) / 1e4);
+let orig_promise = new Promise(resolve => setTimeout(resolve, 1e3, "Hello World!"));
+let timed_promise = create_timeout_promise(orig_promise, Math.round(1e4 * Math.PI / 4) / 1e4);
 timed_promise.then(console.log).catch(console.error);
