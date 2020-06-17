@@ -232,7 +232,7 @@ module.exports = function (config) {
         /** @type {Map<String, PrimitiveValue>} */
         const valueMap = new Map(readRecords.map(record => [record["key"], record["value"]]));
         /** @type {Array<PrimitiveValue>} */
-        const valueArr = keyArr.map(key => valueMap.get(key) || null);
+        const valueArr = keyArr.map(val => valueMap.get(val) || null);
 
         return isArray ? valueArr : valueArr[0];
 
@@ -302,10 +302,10 @@ module.exports = function (config) {
         let updateRecords = await request_neo4j(
             "MATCH (subject:`rdfs:Resource` { `@id`: $subject })\n" +
             (addTypes.length === 0 ? "" : "SET " + addTypes.map(
-                type => "subject:`" + type + "`"
+                val => "subject:`" + val + "`"
             ).join(", ") + "\n") +
             (removeTypes.length === 0 ? "" : "REMOVE " + removeTypes.map(
-                type => "subject:`" + type + "`"
+                val => "subject:`" + val + "`"
             ).join(", ") + "\n") +
             "RETURN true AS updated",
             { "subject": subject }
