@@ -294,8 +294,8 @@ module.exports = function (config) {
         const prevTypes = await operation_neo4j_read_type(subject);
         if (!prevTypes) return false;
 
-        const addTypes = typeArr.filter(type => !prevTypes.includes(type));
-        const removeTypes = prevTypes.filter(type => !typeArr.includes(type));
+        const addTypes = typeArr.filter(val => !prevTypes.includes(val));
+        const removeTypes = prevTypes.filter(val => !typeArr.includes(val));
         if (addTypes.length + removeTypes.length === 0) return true;
 
         /** @type {Array<Record>} */
