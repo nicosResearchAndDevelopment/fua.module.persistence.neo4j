@@ -4,7 +4,7 @@ const
         "bolt://localhost:7687",
         neo4j.auth.basic("neo4j", "persistence")
     ),
-    fua_module_persistence_neo4j = require("../src/fua.module.persistence.neo4j.js");
+    module_persistence_neo4j = require("../src/module.persistence.neo4j.js");
 
 // REM Only ever run on a test database. Queries might destroy active data.
 // I would advice to download neo4j-community-3.5.x from https://neo4j.com/download-center/
@@ -18,7 +18,7 @@ const
     await init_session.run("MATCH (n) DETACH DELETE n");
     init_session.close();
 
-    const neo4j_persistence_adapter = fua_module_persistence_neo4j({
+    const neo4j_persistence_adapter = module_persistence_neo4j({
         'neo4j': neo4j,
         'neo4j_driver': neo4j_driver,
         'driver': neo4j_driver,
