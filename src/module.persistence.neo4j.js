@@ -245,7 +245,7 @@ module.exports = function (config) {
         /** @type {Map<String, PrimitiveValue>} */
         const valueMap = new Map(readRecords.map(record => [record["key"], record["value"]]));
         /** @type {Array<PrimitiveValue>} */
-        const valueArr = keyArr.map(val => valueMap.get(val) || null);
+        const valueArr = keyArr.map(val => valueMap.has(val) ? valueMap.get(val) : null);
 
         return isArray ? valueArr : valueArr[0];
 
