@@ -4,14 +4,14 @@ const
     array_primitive_types = Object.freeze(["boolean", "number", "string"]);
 
 /**
- * 
  * @param {*} value 
- * @param {String} [errMsg=""] 
+ * @param {String} errMsg
  * @param {Class<Error>} [errType=Error] 
+ * @throws {Error<errType>} if the value is falsy
  */
-function assert(value, errMsg = "", errType = Error) {
+function assert(value, errMsg, errType = Error) {
     if (!value) {
-        const err = new errType(errMsg);
+        const err = new errType(`neo4j_adapter : ${errMsg}`);
         Error.captureStackTrace(err, assert);
         throw err;
     }
@@ -130,7 +130,7 @@ module.exports = function (config) {
     async function operation_neo4j_exist(subject) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_exist - invalid {SemanticID} subject <${subject}>`);
+            `operation_exist : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<Record>} */
         const existRecords = await request_neo4j(
@@ -152,7 +152,7 @@ module.exports = function (config) {
     async function operation_neo4j_create(subject) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_create - invalid {SemanticID} subject <${subject}>`);
+            `operation_create : invalid {SemanticID} subject <${subject}>`);
 
         if (await operation_neo4j_exist(subject))
             return false;
@@ -177,7 +177,7 @@ module.exports = function (config) {
     async function operation_neo4j_read_subject(subject) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_read_subject - invalid {SemanticID} subject <${subject}>`);
+            `operation_read_subject : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<Record>} */
         const readRecords = await request_neo4j(
@@ -199,7 +199,7 @@ module.exports = function (config) {
     async function operation_neo4j_read_type(subject) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_read_type - invalid {SemanticID} subject <${subject}>`);
+            `operation_read_type : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<Record>} */
         const readRecords = await request_neo4j(
@@ -225,14 +225,14 @@ module.exports = function (config) {
         if (key === "@type") return await operation_neo4j_read_type(subject);
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_read - invalid {SemanticID} subject <${subject}>`);
+            `operation_read : invalid {SemanticID} subject <${subject}>`);
 
         const isArray = Array.isArray(key);
         /** @type {Array<String>} */
         const keyArr = isArray ? key : [key];
 
         assert(keyArr.every(is_cypher_save_string),
-            `neo4j_adapter - operation_read - {String|Array<String>} key <${key}> not cypher save`);
+            `operation_read : {String|Array<String>} key <${key}> not cypher save`);
 
         /** @type {Array<Record>} */
         const readRecords = await request_neo4j(
@@ -262,13 +262,13 @@ module.exports = function (config) {
     async function operation_neo4j_update_predicate(subject, predicate, object) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_update_predicate - invalid {SemanticID} subject <${subject}>`);
+            `operation_update_predicate : invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
-            `neo4j_adapter - operation_update_predicate - invalid {SemanticID} predicate <${predicate}>`);
+            `operation_update_predicate : invalid {SemanticID} predicate <${predicate}>`);
         assert(is_semantic_id(object),
-            `neo4j_adapter - operation_update_predicate - invalid {SemanticID} object <${object}>`);
+            `operation_update_predicate : invalid {SemanticID} object <${object}>`);
         assert(is_cypher_save_string(predicate),
-            `neo4j_adapter - operation_update_predicate - {SemanticID} predicate <${predicate}> not cypher save`);
+            `operation_update_predicate : {SemanticID} predicate <${predicate}> not cypher save`);
 
         /** @type {Array<Record>} */
         const updateRecords = await request_neo4j(
@@ -293,13 +293,13 @@ module.exports = function (config) {
     async function operation_neo4j_update_type(subject, type) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_update_type - invalid {SemanticID} subject <${subject}>`);
+            `operation_update_type : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<SemanticID>} */
         const typeArr = Array.isArray(type) ? type : [type];
 
         assert(typeArr.every(is_semantic_id),
-            `neo4j_adapter - operation_update_type - invalid {SemanticID|Array<SemanticID>} type <${type}>`);
+            `operation_update_type : invalid {SemanticID|Array<SemanticID>} type <${type}>`);
         if (!typeArr.includes("rdfs:Resource"))
             typeArr.push("rdfs:Resource");
 
@@ -342,11 +342,11 @@ module.exports = function (config) {
         if (is_semantic_id(key) && is_semantic_id(value)) return await operation_neo4j_update_predicate(subject, key, value);
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_update - invalid {SemanticID} subject <${subject}>`);
+            `operation_update : invalid {SemanticID} subject <${subject}>`);
         assert(is_cypher_save_string(key),
-            `neo4j_adapter - operation_update - {String|SemanticID} key <${key}> not cypher save`);
+            `operation_update : {String|SemanticID} key <${key}> not cypher save`);
         assert(is_primitive_value(value),
-            `neo4j_adapter - operation_update - invalid {PrimitiveValue|SemanticID} value <${value}>`);
+            `operation_update : invalid {PrimitiveValue|SemanticID} value <${value}>`);
 
         /** @type {Array<Record>} */
         const updateRecords = await request_neo4j(
@@ -371,13 +371,13 @@ module.exports = function (config) {
     async function operation_neo4j_delete_predicate(subject, predicate, object) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_delete_predicate - invalid {SemanticID} subject <${subject}>`);
+            `operation_delete_predicate : invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
-            `neo4j_adapter - operation_delete_predicate - invalid {SemanticID} predicate <${predicate}>`);
+            `operation_delete_predicate : invalid {SemanticID} predicate <${predicate}>`);
         assert(is_semantic_id(object),
-            `neo4j_adapter - operation_delete_predicate - invalid {SemanticID} object <${object}>`);
+            `operation_delete_predicate : invalid {SemanticID} object <${object}>`);
         assert(is_cypher_save_string(predicate),
-            `neo4j_adapter - operation_delete_predicate - {SemanticID} predicate <${predicate}> not cypher save`);
+            `operation_delete_predicate : {SemanticID} predicate <${predicate}> not cypher save`);
 
         /** @type {Array<Record>} */
         const deleteRecords = await request_neo4j(
@@ -403,7 +403,7 @@ module.exports = function (config) {
         if (predicate || object) return await operation_neo4j_delete_predicate(subject, predicate, object);
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_delete - invalid {SemanticID} subject <${subject}>`);
+            `operation_delete : invalid {SemanticID} subject <${subject}>`);
 
         /** @type {Array<Record>} */
         const deleteRecords = await request_neo4j(
@@ -426,11 +426,11 @@ module.exports = function (config) {
     async function operation_neo4j_list(subject, predicate) {
 
         assert(is_semantic_id(subject),
-            `neo4j_adapter - operation_list - invalid {SemanticID} subject <${subject}>`);
+            `operation_list : invalid {SemanticID} subject <${subject}>`);
         assert(is_semantic_id(predicate),
-            `neo4j_adapter - operation_list - invalid {SemanticID} predicate <${predicate}>`);
+            `operation_list : invalid {SemanticID} predicate <${predicate}>`);
         assert(is_cypher_save_string(predicate),
-            `neo4j_adapter - operation_list - {SemanticID} predicate <${predicate}> not cypher save`);
+            `operation_list : {SemanticID} predicate <${predicate}> not cypher save`);
 
         /** @type {Array<Record>} */
         const listRecords = await request_neo4j(
