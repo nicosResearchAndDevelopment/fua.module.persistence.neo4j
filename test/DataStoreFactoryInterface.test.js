@@ -11,7 +11,7 @@ const
 		password: 'test'
 	};
 
-describe('module.persistence.neo4j : StoreFactoryInterface', function() {
+describe('module.persistence.neo4j : DataStoreFactoryInterface', function() {
 
 	// https://hub.docker.com/_/neo4j
 	// docker run
