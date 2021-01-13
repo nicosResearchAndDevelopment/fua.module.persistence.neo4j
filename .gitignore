@@ -1,3 +1,4 @@
-.*/
-neo4j-*/
-node_modules/
+/.*/
+/node_modules/
+/package.json
+/neo4j-*/

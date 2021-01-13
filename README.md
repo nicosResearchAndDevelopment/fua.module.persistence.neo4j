@@ -1,2 +1,2 @@
-# fua.module.persistence.neo4j
+# module.persistence.neo4j
 
