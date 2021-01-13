@@ -1,5 +1,7 @@
 # module.persistence.neo4j
 
+- [Persistence](../module.persistence)
+
 ## Interface
 
 ```ts
