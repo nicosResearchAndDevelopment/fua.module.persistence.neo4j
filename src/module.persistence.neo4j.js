@@ -5,7 +5,7 @@ const
 
 /**
  * @param {NamedNode} graph
- * @para {Neo4jDriver} db
+ * @para {Neo4jDriver} driver
  * @returns {Neo4jStore}
  */
 exports.store = function(graph, driver) {

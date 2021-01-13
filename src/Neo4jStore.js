@@ -1,5 +1,5 @@
 const
-	module_name = 'module.rdf.Neo4jStore',
+	module_name = 'module.persistence.neo4j : Neo4jStore',
 	neo4j = require('neo4j-driver'),
 	hrt = typeof fua !== 'undefined' ? fua.core.hrt : () => Date.now() / 1000,
 	dataFactory = require('../../module.persistence/src/module.persistence.js'),
