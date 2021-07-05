@@ -37,7 +37,27 @@ class Neo4jStore extends DataStore {
         const quadArr = await super.add(quads), ts = _.hrt();
         let addCount  = 0;
 
-        await Promise.all(quadArr.map(async (quad) => {
+        // REM: Neo4jError: LockClient[980 for transaction: 638] can't wait on resource RWLock[NODE(50), hash=1748831453] since 
+        // => LockClient[980 for transaction: 638] <-[:HELD_BY]- RWLock[NODE(57), hash=1202783845] <-[:WAITING_FOR]
+        // - LockClient[1079 for transaction: 734] <-[:HELD_BY]- RWLock[NODE(50), hash=1748831453]
+
+        //await Promise.all(quadArr.map(async (quad) => {
+        //    const
+        //        Query_add = this.factory.isLiteral(quad.object) ? Query_addLiteral : Query_addRelation,
+        //        records   = await Query_add(this.#driver, {
+        //            subject:   quad.subject,
+        //            predicate: quad.predicate,
+        //            object:    quad.object,
+        //            ts:        ts
+        //        });
+        //
+        //    if (records.length > 0 && records[0].created) {
+        //        addCount++;
+        //        this.emit('created', quad);
+        //    }
+        //}));
+
+        for (let quad of quadArr) {
             const
                 Query_add = this.factory.isLiteral(quad.object) ? Query_addLiteral : Query_addRelation,
                 records   = await Query_add(this.#driver, {
@@ -51,7 +71,7 @@ class Neo4jStore extends DataStore {
                 addCount++;
                 this.emit('created', quad);
             }
-        }));
+        }
 
         return addCount;
     } // Neo4jStore#add
