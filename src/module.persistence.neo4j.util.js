@@ -64,4 +64,4 @@ util.loadQuery = function (filename) {
     return (driver, param) => util.fetchData(driver, util.replaceTemplate(query, param), param);
 }; // loadQuery
 
-module.exports = util;
+module.exports = Object.freeze(util);
