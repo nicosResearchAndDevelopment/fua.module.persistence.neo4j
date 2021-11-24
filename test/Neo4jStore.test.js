@@ -3,11 +3,14 @@ const
     expect                   = require('expect'),
     Neo4jStore               = require('../src/module.persistence.neo4j.js'),
     options                  = {
-        uri:      'bolt://localhost:7687/',
-        user:     'neo4j',
-        password: 'test',
-        default:  'neo4j',
-        graphs:   ['neo4j']
+        uri:       'bolt://localhost:7687/',
+        user:      'neo4j',
+        password:  'test',
+        defaultDB: 'bolt://localhost:7687/?use=neo4j',
+        databases: [{
+            id:   'bolt://localhost:7687/?use=neo4j',
+            name: 'neo4j'
+        }]
     };
 
 describe('module.persistence.neo4j', function () {
