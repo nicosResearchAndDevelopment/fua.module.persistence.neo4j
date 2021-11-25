@@ -1,15 +1,20 @@
 const
-    {describe, test, before} = require('mocha'),
-    expect                   = require('expect'),
-    Neo4jStore               = require('../src/module.persistence.neo4j.js'),
-    options                  = {
-        uri:       'bolt://localhost:7687/',
-        user:      'neo4j',
-        password:  'test',
-        defaultDB: 'bolt://localhost:7687/?use=neo4j',
+    {describe, test, before, after} = require('mocha'),
+    expect                          = require('expect'),
+    Neo4jStore                      = require('../src/module.persistence.neo4j.js'),
+    sleep                           = (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+    options                         = {
+        defaultDB: 'neo4j://local-default',
         databases: [{
-            id:   'bolt://localhost:7687/?use=neo4j',
-            name: 'neo4j'
+            id:      'neo4j://local-default',
+            connect: {
+                uri:      'bolt://localhost:7687/',
+                database: 'neo4j'
+            },
+            auth:    {
+                user:     'neo4j',
+                password: 'test'
+            }
         }]
     };
 
@@ -33,7 +38,14 @@ describe('module.persistence.neo4j', function () {
     });
 
     test('should have an initial size of 0', async function () {
-        expect(await store.size()).toBe(0);
+        const size = await store.size();
+        expect(typeof size).toBe('number');
+        expect(size).toBe(0);
+    });
+
+    after('wait a sec before finishing', async function () {
+        this.timeout(3e3);
+        await sleep(1e3);
     });
 
 });
