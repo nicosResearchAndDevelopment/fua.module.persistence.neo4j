@@ -1,4 +1,5 @@
-const util = require('./module.persistence.neo4j.util.js');
+const
+    util = require('./module.persistence.neo4j.util.js');
 
 exports.countQuads = util.loadQuery('countQuads.cyp');
 

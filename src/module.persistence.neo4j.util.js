@@ -22,24 +22,6 @@ util.convertRecord = function (record) {
 }; // convertRecord
 
 /**
- * @param {import("neo4j-driver").driver} driver
- * @param {string} query
- * @param {object} [param]
- * @returns {Promise<Array<{[key: string]: any}>>}
- */
-util.fetchData = async function (driver, query, param) {
-    const session = driver.session();
-    try {
-        const result = await session.run(query, param);
-        session.close();
-        return result['records'].map(util.convertRecord);
-    } catch (err) {
-        session.close();
-        throw err;
-    }
-}; // fetchData
-
-/**
  * @param {string} query
  * @param {object} param
  * @returns {string}
@@ -56,12 +38,13 @@ util.replaceTemplate = function (query, param) {
 }; // replaceTemplate
 
 /**
+ * Should only be used on module buildup, because it uses readFileSync!
  * @param {string} filename
- * @returns {function(import("neo4j-driver").driver, object): Promise<Array<{[key: string]: any}>>}
+ * @returns {string}
  */
 util.loadQuery = function (filename) {
-    const query = readFileSync(joinPath(__dirname, 'queries', filename)).toString();
-    return (driver, param) => util.fetchData(driver, util.replaceTemplate(query, param), param);
+    const buffer = readFileSync(joinPath(__dirname, 'queries', filename));
+    return buffer.toString();
 }; // loadQuery
 
 module.exports = Object.freeze(util);
