@@ -47,4 +47,5 @@ util.loadQuery = function (filename) {
     return buffer.toString();
 }; // loadQuery
 
-module.exports = Object.freeze(util);
+Object.freeze(util);
+module.exports = util;

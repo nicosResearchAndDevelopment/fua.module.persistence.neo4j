@@ -30,4 +30,6 @@ CALL apoc.merge.relationship(
 )
 YIELD rel AS predicate
 
-RETURN exists(predicate._created) AS created
+WITH NOT exists(predicate._created) AS existed, predicate
+DELETE predicate
+RETURN existed AS deleted

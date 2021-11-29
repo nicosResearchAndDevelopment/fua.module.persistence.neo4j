@@ -20,14 +20,10 @@ CALL apoc.merge.node(
 )
 YIELD node AS object
 
-CALL apoc.merge.relationship(
+WITH apoc.nodes.connected(
 	subject,
-	quad.predicate.value,
-	null,
-	{ _created: true },
 	object,
-	{ _created: null }
-)
-YIELD rel AS predicate
+	'`' + quad.predicate.value + '`>'
+) AS connected
 
-RETURN exists(predicate._created) AS created
+RETURN all(value IN collect(connected) WHERE value = true) AS included
