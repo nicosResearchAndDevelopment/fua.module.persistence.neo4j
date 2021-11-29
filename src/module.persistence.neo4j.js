@@ -196,7 +196,7 @@ class Neo4jStore extends DataStore {
 
         for (let [db, dbQuadArr] of quadArrMap.entries()) {
             const records = await db.runQuery(queries.hasQuads, {quads: dbQuadArr});
-            console.log(records.map(util.convertRecord));
+            // console.log(records.map(util.convertRecord));
             if (!records[0]?.get('included')) return false;
         }
 
