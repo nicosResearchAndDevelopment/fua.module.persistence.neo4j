@@ -125,7 +125,7 @@ class Neo4jStore extends DataStore {
 
     async delete(quads) {
         const
-            quadArr    = await super.has(quads),
+            quadArr    = await super.delete(quads),
             quadArrMap = new Map();
 
         for (let quad of quadArr) {
@@ -162,7 +162,7 @@ class Neo4jStore extends DataStore {
 
     async deleteStream(stream) {
         const
-            quadStream = await super.addStream(stream),
+            quadStream = await super.deleteStream(stream),
             quadArr    = [];
         quadStream.on('data', quad => quadArr.push(quad));
         await new Promise(resolve => quadStream.on('end', resolve));
