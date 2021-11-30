@@ -37,13 +37,14 @@ const
 
     await store.createIndex();
     datasetArr.forEach(dataset => allData.add(dataset));
-    console.log('size: ' + allData.size);
+    console.log('size before: ' + await store.size());
+    console.log('quads to add: ' + allData.size);
 
     let added = 0;
-    console.time('done');
+    console.time('transfer time');
 
     // REM Variant 1: Add all data at once.
-    added += await store.add(allData);
+    // added += await store.add(allData);
 
     // REM Variant 2: Add all datasets one after another.
     // for (let dataset of datasetArr) {
@@ -51,12 +52,19 @@ const
     // }
 
     // REM Variant 3: Add all datasets simultaneously.
-    // await Promise.all(datasetArr.map(async (dataset) => {
-    //     added += await store.add(dataset);
-    // }));
+    const results = await Promise.all(datasetArr.map((dataset) => store.add(dataset)));
+    for (let value of results) {
+        added += value;
+    }
 
-    console.timeEnd('done');
-    console.log('added: ' + added);
+    console.timeEnd('transfer time');
+    console.log('added quads: ' + added);
+    console.log('size after: ' + await store.size());
+
+    const deleted = await store.delete(allData);
+    // const deleted = await store.deleteMatches();
+    console.log('deleted quads: ' + deleted);
+    await store.clearLooseNodes();
 })().catch(err => console.error(err?.stack ?? err)).finally(() => {
     setTimeout(process.exit, 100)
 });

@@ -170,8 +170,8 @@ class Neo4jStore extends DataStore {
     } // Neo4jStore#deleteStream
 
     async deleteMatches(subject, predicate, object, graph) {
-        const matches = this.match(subject, predicate, object, graph);
-        return this.delete(matches);
+        const matches = await this.match(subject, predicate, object, graph);
+        return await this.delete(matches);
     } // Neo4jStore#deleteMatches
 
     async has(quads) {
@@ -218,13 +218,32 @@ class Neo4jStore extends DataStore {
         }
 
         for (let db of dbIterable) {
-            await Promise.all([
-                db.runQuery('CREATE CONSTRAINT IF NOT EXISTS ON (n:NamedNode) ASSERT n.value IS UNIQUE'),
-                db.runQuery('CREATE CONSTRAINT IF NOT EXISTS ON (n:BlankNode) ASSERT n.value IS UNIQUE'),
-                db.runQuery('CREATE INDEX IF NOT EXISTS FOR (n:Literal) ON (n.value)')
-            ]);
+            await db.runTransaction(async (runQuery) => {
+                await runQuery('CREATE CONSTRAINT IF NOT EXISTS ON (n:NamedNode) ASSERT n.value IS UNIQUE');
+                await runQuery('CREATE CONSTRAINT IF NOT EXISTS ON (n:BlankNode) ASSERT n.value IS UNIQUE');
+                await runQuery('CREATE INDEX IF NOT EXISTS FOR (n:Literal) ON (n.value)');
+            });
         }
     } // Neo4jStore#createIndex
+
+    async clearLooseNodes(graph) {
+        let dbIterable;
+
+        if (graph) {
+            if (this.factory.isDefaultGraph(graph)) {
+                dbIterable = [this.#databases.get(this.#defaultDB)];
+            } else {
+                util.assert(this.factory.isNamedNode(graph), 'Neo4jStore#match : expected graph to be a NamedNode');
+                dbIterable = [this.#databases.get(graph.value)];
+            }
+        } else {
+            dbIterable = this.#databases.values();
+        }
+
+        for (let db of dbIterable) {
+            await db.runQuery(queries.removeLooseNodes);
+        }
+    } // Neo4jStore#clearLooseNodes
 
 } // Neo4jStore
 

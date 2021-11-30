@@ -6,10 +6,11 @@ const
 // SEE https://neo4j.com/developer/neo4j-apoc/
 // SEE https://neo4j.com/labs/apoc/4.3/
 
-exports.countQuads  = util.loadQuery('countQuads.cyp');
-exports.addQuads    = util.loadQuery('addQuads.cyp');
-exports.matchQuads  = util.loadQuery('matchQuads.cyp');
-exports.hasQuads    = util.loadQuery('hasQuads.cyp');
-exports.deleteQuads = util.loadQuery('deleteQuads.cyp');
+exports.countQuads       = util.loadQuery('countQuads.cyp');
+exports.addQuads         = util.loadQuery('addQuads.cyp');
+exports.matchQuads       = util.loadQuery('matchQuads.cyp');
+exports.hasQuads         = util.loadQuery('hasQuads.cyp');
+exports.deleteQuads      = util.loadQuery('deleteQuads.cyp');
+exports.removeLooseNodes = util.loadQuery('removeLooseNodes.cyp');
 
 Object.freeze(exports);

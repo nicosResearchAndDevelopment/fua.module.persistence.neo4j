@@ -7,6 +7,7 @@ class Neo4jConnection {
     /** @type {import("neo4j-driver").Driver} */
     #driver   = null;
     #database = '';
+    #queue    = new util.WaitQueue();
 
     constructor({id, connect, auth}) {
         util.assert(util.isString(id), 'Neo4jConnection#constructor : expected id to be a string', TypeError);
@@ -35,14 +36,18 @@ class Neo4jConnection {
     async runQuery(cypherQuery, queryParams = {}) {
         util.assert(util.isString(cypherQuery), 'Neo4jConnection#runQuery : expected cypherQuery to be a string', TypeError);
         util.assert(util.isObject(queryParams), 'Neo4jConnection#runQuery : expected queryParams to be an object', TypeError);
-        const session = this.#driver.session({database: this.#database});
+        const
+            ticket  = await this.#queue.requestTicket(),
+            session = this.#driver.session({database: this.#database});
 
         try {
             const queryResult = await session.run(cypherQuery, queryParams);
             await session.close();
+            ticket.close();
             return queryResult.records;
         } catch (err) {
             await session.close();
+            ticket.close();
             throw err;
         }
     } // Neo4jConnection#runQuery
@@ -55,6 +60,7 @@ class Neo4jConnection {
     async runTransaction(txMethod) {
         util.assert(util.isFunction(txMethod), 'Neo4jConnection#runTransaction : expected txMethod to be a function', TypeError);
         const
+            ticket  = await this.#queue.requestTicket(),
             session = this.#driver.session({database: this.#database}),
             txc     = session.beginTransaction();
 
@@ -75,9 +81,11 @@ class Neo4jConnection {
             const txResult = await txMethod(runQuery);
             await txc.commit();
             await session.close();
+            ticket.close();
             return txResult;
         } catch (err) {
             await session.close();
+            ticket.close();
             throw err;
         }
     } // Neo4jConnection#runTransaction
