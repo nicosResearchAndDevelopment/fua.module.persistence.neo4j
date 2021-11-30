@@ -12,17 +12,18 @@ class Neo4jConnection {
         util.assert(util.isString(id), 'Neo4jConnection#constructor : expected id to be a string', TypeError);
 
         util.assert(util.isObject(connect), 'Neo4jConnection#constructor : expected connect to be an object', TypeError);
-        util.assert(util.isString(connect.uri), 'Neo4jStore#constructor : expected connect.uri to be a string', TypeError);
-        util.assert(util.isString(connect.database), 'Neo4jStore#constructor : expected connect.database to be a string', TypeError);
+        util.assert(util.isString(connect.uri), 'Neo4jConnection#constructor : expected connect.uri to be a string', TypeError);
+        util.assert(util.isString(connect.database), 'Neo4jConnection#constructor : expected connect.database to be a string', TypeError);
 
         util.assert(util.isObject(auth), 'Neo4jConnection#constructor : expected auth to be an object', TypeError);
-        util.assert(util.isString(auth.user), 'Neo4jStore#constructor : expected auth.user to be a string', TypeError);
-        util.assert(util.isString(auth.password), 'Neo4jStore#constructor : expected auth.password to be a string', TypeError);
+        util.assert(util.isString(auth.user), 'Neo4jConnection#constructor : expected auth.user to be a string', TypeError);
+        util.assert(util.isString(auth.password), 'Neo4jConnection#constructor : expected auth.password to be a string', TypeError);
 
         this.id = id;
         util.lockProp(this, 'id');
 
-        this.#driver = neo4j.driver(connect.uri, neo4j.auth.basic(auth.user, auth.password));
+        this.#database = connect.database;
+        this.#driver   = neo4j.driver(connect.uri, neo4j.auth.basic(auth.user, auth.password));
         process.on('beforeExit', () => this.#driver.close());
     } // Neo4jConnection#constructor
 
