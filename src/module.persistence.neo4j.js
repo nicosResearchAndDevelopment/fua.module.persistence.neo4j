@@ -1,7 +1,7 @@
 const
     util            = require('./module.persistence.neo4j.util.js'),
     {DataStore}     = require('@nrd/fua.module.persistence'),
-    queries         = require('./module.persistence.neo4j.queries.js'),
+    queries         = require('./queries/index.js'),
     Neo4jConnection = require('./module.persistence.neo4j.connection.js');
 
 class Neo4jStore extends DataStore {

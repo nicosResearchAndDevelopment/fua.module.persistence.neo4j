@@ -37,16 +37,6 @@ util.replaceTemplate = function (query, param) {
     });
 }; // replaceTemplate
 
-/**
- * Should only be used on module buildup, because it uses readFileSync!
- * @param {string} filename
- * @returns {string}
- */
-util.loadQuery = function (filename) {
-    const buffer = readFileSync(joinPath(__dirname, 'queries', filename));
-    return buffer.toString();
-}; // loadQuery
-
 util.WaitQueue = class WaitQueue {
 
     #ticketQueue = [];
