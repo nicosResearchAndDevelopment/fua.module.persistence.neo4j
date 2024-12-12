@@ -1,5 +1,5 @@
 const
-    _util = require('@nrd/fua.core.util'),
+    _util = require('@fua/core.util'),
     path  = require('path'),
     fs    = require('fs'),
     util  = exports = module.exports = {

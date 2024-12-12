@@ -1,6 +1,6 @@
 const
     util        = require('./module.persistence.neo4j.util.js'),
-    {DataStore} = require('@nrd/fua.module.persistence');
+    {DataStore} = require('@fua/module.persistence');
 
 class Neo4jStore extends DataStore {
 

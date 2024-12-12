@@ -1,6 +1,6 @@
 const
     _                    = require('./module.persistence.neo4j.util.js'),
-    {Dataset, DataStore} = require('@nrd/fua.module.persistence'),
+    {Dataset, DataStore} = require('@fua/module.persistence'),
     neo4j                = require('neo4j-driver'),
     Query_size           = _.loadQuery('neo4j.size.cyp'),
     Query_addRelation    = _.loadQuery('neo4j.addRelation.cyp'),

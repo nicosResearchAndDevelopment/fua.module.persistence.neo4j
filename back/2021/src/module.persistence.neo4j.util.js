@@ -5,9 +5,9 @@ const {
           isBoolean, isNumber, isString,
           isFunction, isObject,
           isArray, isIterable
-      }                   = require('@nrd/fua.core.util'),
-      uuid                = require('@nrd/fua.core.uuid'),
-      hrt                 = require('@nrd/fua.core.hrt'),
+      }                   = require('@fua/core.util'),
+      uuid                = require('@fua/core.uuid'),
+      hrt                 = require('@fua/core.hrt'),
       neo4j               = require('neo4j-driver'),
       {join: joinPath}    = require('path'),
       {readFileSync}      = require('fs'),

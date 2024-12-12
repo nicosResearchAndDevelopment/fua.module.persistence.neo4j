@@ -1,7 +1,7 @@
 const
     util                   = require('./module.persistence.neo4j.util.js'),
     neo4j                  = require('neo4j-driver'),
-    {Dataset, DataFactory} = require('@nrd/fua.module.persistence');
+    {Dataset, DataFactory} = require('@fua/module.persistence');
 
 class Neo4jDatabase {
 
